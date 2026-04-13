@@ -22,3 +22,12 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Python
+durian_api/venv/
+durian_api/__pycache__/
+durian_api/*.pyc
+
+# Model files (terlalu besar)
+durian_api/*.h5
+durian_api/*.keras
