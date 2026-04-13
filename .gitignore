@@ -31,3 +31,11 @@ durian_api/*.pyc
 # Model files (terlalu besar)
 durian_api/*.h5
 durian_api/*.keras
+durian_api/Procfile
+
+# Abaikan semua file model machine learning
+*.h5
+*.keras
+*.data-*
+*.index
+**/model_durian_tf/
