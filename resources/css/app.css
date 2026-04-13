@@ -1,0 +1,21 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* theme helpers preserved from original UI */
+.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    vertical-align: middle;
+}
+
+.bg-glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(24px);
+}
+
+.signature-gradient {
+    background: linear-gradient(135deg, #006c49 0%, #10b981 100%);
+}
