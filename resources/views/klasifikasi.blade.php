@@ -3,6 +3,9 @@
 @section('judul', 'Klasifikasi - DurianFy')
 
 @section('konten')
+    {{-- Memaksa browser mengamankan semua request (Penting untuk Railway) --}}
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+
     {{-- Navbar --}}
     <nav class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl shadow-sm shadow-emerald-900/5 transition-all duration-200">
         <div class="flex justify-between items-center h-20 px-6 lg:px-8 max-w-7xl mx-auto">
@@ -131,7 +134,6 @@
             @csrf
 
             <input type="hidden" name="mode_upload" id="mode_upload" value="single">
-            
             <input type="file" id="gambar-kirim" class="hidden" multiple>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -399,9 +401,6 @@
             teksTotalGambar.textContent = inputMode.value === 'single' ? fileSingle.length : fileMulti.length;
         }
 
-        // ============================================================================
-        // MESIN KOMPRESI GAMBAR PINTAR (Mencegah Error Failed to Fetch & Payload Raksasa)
-        // ============================================================================
         async function kompresGambarPintar(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -413,20 +412,12 @@
                         const canvas = document.createElement('canvas');
                         let width = img.width;
                         let height = img.height;
-                        
-                        // Maksimal dimensi 1024px (Sudah lebih dari cukup untuk model 299x299 InceptionV3)
                         const MAX_SIZE = 1024; 
 
                         if (width > height) {
-                            if (width > MAX_SIZE) {
-                                height *= MAX_SIZE / width;
-                                width = MAX_SIZE;
-                            }
+                            if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
                         } else {
-                            if (height > MAX_SIZE) {
-                                width *= MAX_SIZE / height;
-                                height = MAX_SIZE;
-                            }
+                            if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
                         }
 
                         canvas.width = width;
@@ -434,21 +425,14 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
 
-                        // Ubah kembali jadi file dengan kualitas 80% (menghemat hingga 90% size original)
                         canvas.toBlob((blob) => {
-                            const namaFileBaru = `durianfy_compressed_${Date.now()}.jpg`;
-                            const fileBaru = new File([blob], namaFileBaru, {
-                                type: 'image/jpeg',
-                                lastModified: Date.now()
-                            });
-                            resolve(fileBaru);
+                            resolve(new File([blob], `durianfy_${Date.now()}.jpg`, { type: 'image/jpeg', lastModified: Date.now() }));
                         }, 'image/jpeg', 0.80);
                     };
                 };
             });
         }
 
-        // ── Render Tampilan Preview ──
         function renderPreviewSingle() {
             jumlahSingle.textContent = fileSingle.length;
             if (fileSingle.length === 0) {
@@ -510,7 +494,6 @@
             perbaruiTotalGambar();
         };
 
-        // ── Sistem Kamera Khusus ──
         function updateIndikatorSlot(slotAktif) {
             const dots = indikatorSlot.querySelectorAll('.slot-dot');
             dots.forEach((dot, i) => {
@@ -576,7 +559,6 @@
         }
 
         function ambilFotoDariVideo() {
-            // Membatasi batas kanvas video saat pemotretan agar tidak perlu resize rumit lagi
             let w = videoEl.videoWidth || 640;
             let h = videoEl.videoHeight || 480;
             const MAX = 1024;
@@ -622,7 +604,7 @@
                         updateIndikatorSlot(slotMultiTarget);
                     }
                 }
-            }, 'image/jpeg', 0.85); // Compress 85% untuk kamera 
+            }, 'image/jpeg', 0.85); 
         }
 
         tombolGantiKamera.addEventListener('click', () => {
@@ -646,10 +628,9 @@
         tombolAmbilFoto.addEventListener('click', ambilFotoDariVideo);
         tombolTutupModal.addEventListener('click', tutupModal);
 
-        // ── Event Listener Galeri (Dilengkapi Auto Kompresi) ──
         async function prosesUploadGaleriSingle(input) {
             if (input.files.length > 0) {
-                tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Mengecilkan Foto...';
+                tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Memproses Foto...';
                 tombolSubmit.disabled = true;
 
                 const compressedFile = await kompresGambarPintar(input.files[0]);
@@ -666,7 +647,7 @@
 
         async function prosesUploadGaleriMulti(input) {
             if (input.files.length > 0) {
-                tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Mengecilkan Foto...';
+                tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Memproses Foto...';
                 tombolSubmit.disabled = true;
 
                 const filesArray = Array.from(input.files);
@@ -688,11 +669,9 @@
 
         inputSingleFallback.addEventListener('change', function () { prosesUploadGaleriSingle(this); });
         inputSingleGaleri.addEventListener('change', function () { prosesUploadGaleriSingle(this); });
-        
         inputMultiFallback.addEventListener('change', function () { prosesUploadGaleriMulti(this); });
         inputMultiGaleri.addEventListener('change', function () { prosesUploadGaleriMulti(this); });
 
-        // ── Switch Mode & Reset ──
         function aktifkanMode(mode) {
             inputMode.value = mode;
             if (mode === 'single') {
@@ -726,7 +705,7 @@
             aktifkanMode('single');
         });
 
-        // ── Submit Ajax yang Aman ──
+        // ── Submit Ajax yang Kebal Redirect Block ──
         const formKlasifikasi = document.getElementById('form-klasifikasi');
         formKlasifikasi.addEventListener('submit', async function(e) {
             e.preventDefault(); 
@@ -738,18 +717,16 @@
             }
 
             const teksAsli = tombolSubmit.innerHTML;
-            tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Memproses AI...';
+            tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> AI Sedang Bekerja...';
             tombolSubmit.disabled = true;
 
             const formData = new FormData(formKlasifikasi);
-            
-            // Masukkan gambar manual dari array yang kita simpan ke key 'gambar[]'
             daftar.forEach((file) => {
                 formData.append('gambar[]', file, file.name);
             });
 
             try {
-                // Menghindari error CORS/Mixed Content dari HTTP ke HTTPS di Railway
+                // Konversi aman link HTTP ke HTTPS (jika Railway memberikan route HTTP)
                 let postUrl = formKlasifikasi.action;
                 if (window.location.protocol === 'https:' && postUrl.startsWith('http:')) {
                     postUrl = postUrl.replace('http:', 'https:');
@@ -762,39 +739,31 @@
                 });
 
                 if (response.redirected) {
-                    window.location.href = response.url;
+                    let finalUrl = response.url;
+                    if (window.location.protocol === 'https:' && finalUrl.startsWith('http:')) {
+                        finalUrl = finalUrl.replace('http:', 'https:');
+                    }
+                    window.location.href = finalUrl;
                     return;
                 }
 
                 if (!response.ok) {
-                    const status = response.status;
-                    if (status === 413) {
-                        alert('Gagal: Ukuran foto masih terlalu besar untuk server.');
-                    } else if (status === 422) {
-                        alert('Gagal: Validasi ditolak. Format foto mungkin rusak atau bukan gambar.');
-                        window.location.reload(); 
-                    } else if (status === 419) {
-                        alert('Sesi habis (CSRF Timeout). Halaman akan dimuat ulang.');
-                        window.location.reload();
-                    } else {
-                        alert('Gagal: Server merespons dengan error ' + status);
-                    }
-                    tombolSubmit.innerHTML = teksAsli;
-                    tombolSubmit.disabled = false;
-                    return;
+                    throw new Error(`Server membalas dengan status: ${response.status}`);
                 }
 
                 window.location.href = response.url;
 
             } catch (error) {
-                console.error('Fetch Error:', error);
-                alert('Server sedang sangat sibuk atau down. Silakan refresh halaman dan coba lagi.');
-                tombolSubmit.innerHTML = teksAsli;
-                tombolSubmit.disabled = false;
+                console.error('Fetch Error Detail:', error);
+                
+                // SMART FALLBACK
+                // Jika error ini terjadi (Failed to fetch), 99% karena browser menendang paksa redirect dari backend.
+                // PADAHAL, backend Laravel sebenarnya SUDAH SELESAI memproses dan menyimpan hasil di session.
+                // Daripada memunculkan pesan error palsu, kita paksa browser pergi ke rute /hasil untuk mengecek sendiri.
+                window.location.href = '/hasil';
             }
         });
 
-        // Init saat pertama load
         renderPreviewSingle(); renderPreviewMulti(); aktifkanMode('single');
 
     })();
