@@ -27,15 +27,9 @@ Thumbs.db
 durian_api/venv/
 durian_api/__pycache__/
 durian_api/*.pyc
+durian_api/*.pyo
 
-# Model files (terlalu besar)
+# Model files besar
 durian_api/*.h5
 durian_api/*.keras
-durian_api/Procfile
-
-# Abaikan semua file model machine learning
-*.h5
-*.keras
-*.data-*
-*.index
-**/model_durian_tf/
+durian_api/model_durian_tf/
