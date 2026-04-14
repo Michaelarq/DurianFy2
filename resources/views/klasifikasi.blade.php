@@ -110,6 +110,20 @@
                 Pilih mode upload yang paling nyaman, lalu unggah foto durian dari galeri atau kamera untuk dilakukan klasifikasi menggunakan model InceptionV3.
             </p>
         </header>
+        {{-- TAMBAHKAN KODE INI UNTUK MENAMPILKAN ERROR --}}
+        @if ($errors->any())
+            <div class="mb-8 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 shadow-sm">
+                <div class="flex items-center gap-2 mb-2 font-bold">
+                    <span class="material-symbols-outlined">error</span>
+                    Terjadi Kesalahan:
+                </div>
+                <ul class="list-disc pl-8 text-sm space-y-1">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         @if (session('info'))
             <div class="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
