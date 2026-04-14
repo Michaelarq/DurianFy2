@@ -33,16 +33,18 @@ def download_model():
 
     print("Mendownload model dari Google Drive...")
     try:
-        url = f'https://drive.google.com/drive/folders/{GDRIVE_FOLDER_ID}'
-        gdown.download_folder(url, output='.', quiet=False, use_cookies=False)
+        # Download folder ke direktori sementara dulu
+        gdown.download_folder(
+            id=GDRIVE_FOLDER_ID,
+            output=MODEL_PATH,   # <-- langsung output ke MODEL_PATH
+            quiet=False,
+            use_cookies=False
+        )
         print("[OK] Download selesai!")
         return True
     except Exception as e:
         print(f"[GAGAL] Download folder gagal: {e}")
-        # Coba cara alternatif — download file satu per satu
         return False
-
-download_model()
 # ─── LOAD MODEL ──────────────────────────────────────────────────────────────
 
 print("=" * 55)
