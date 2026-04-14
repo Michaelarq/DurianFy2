@@ -17,7 +17,31 @@ MODEL_PATH = 'model_durian_tf'
 # {'bawor': 0, 'blackthorn': 1, 'jenis_lainnya': 2, 'musang_king': 3}
 CLASS_NAMES = ['bawor', 'blackthorn', 'jenis_lainnya', 'musang_king']
 
+
+# ─── AUTO DOWNLOAD MODEL ─────────────────────────────────────────────────────
+def download_model():
+    if os.path.exists(MODEL_PATH) and os.listdir(MODEL_PATH):
+        print("[OK] Model sudah ada, skip download.")
+        return True
+
+    if not GDRIVE_FOLDER_ID:
+        print("[GAGAL] GDRIVE_FOLDER_ID tidak diset!")
+        return False
+
+    print("Mendownload model dari Google Drive...")
+    try:
+        url = f'https://drive.google.com/drive/folders/{GDRIVE_FOLDER_ID}'
+        gdown.download_folder(url, output='.', quiet=False, use_cookies=False)
+        print("[OK] Download selesai!")
+        return True
+    except Exception as e:
+        print(f"[GAGAL] Download folder gagal: {e}")
+        # Coba cara alternatif — download file satu per satu
+        return False
+
+download_model()
 # ─── LOAD MODEL ──────────────────────────────────────────────────────────────
+
 print("=" * 55)
 print("DurianFy AI Server — Memuat model InceptionV3 V3...")
 print("=" * 55)
