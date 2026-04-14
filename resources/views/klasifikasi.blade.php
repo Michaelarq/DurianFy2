@@ -94,7 +94,7 @@
                 </div>
 
                 <div class="text-sm font-medium text-emerald-700" id="teks-sisa-slot">
-                    &nbsp;
+                     
                 </div>
             </div>
         </div>
@@ -110,7 +110,8 @@
                 Pilih mode upload yang paling nyaman, lalu unggah foto durian dari galeri atau kamera untuk dilakukan klasifikasi menggunakan model InceptionV3.
             </p>
         </header>
-        {{-- TAMBAHKAN KODE INI UNTUK MENAMPILKAN ERROR --}}
+
+        {{-- Menampilkan Error Validasi Laravel --}}
         @if ($errors->any())
             <div class="mb-8 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800 shadow-sm">
                 <div class="flex items-center gap-2 mb-2 font-bold">
@@ -297,8 +298,6 @@
                         <div class="mt-4 text-sm text-slate-500">
                             Saran: gunakan minimal 2 sudut agar ciri kulit durian lebih lengkap terlihat.
                         </div>
-
-                        {{-- Tombol hapus per slot (disuntikkan JS) --}}
                     </section>
                 </div>
 
@@ -799,6 +798,58 @@
             renderPreviewMulti();
             sinkronInputKirim();
             aktifkanMode('single');
+        });
+
+        // ── Validasi & Submit Form via AJAX (Mengatasi Bug Browser Mobile) ──────────
+        const formKlasifikasi = document.getElementById('form-klasifikasi');
+        formKlasifikasi.addEventListener('submit', async function(e) {
+            e.preventDefault(); // Cegah submit bawaan browser yang buggy
+            
+            const daftar = inputMode.value === 'single' ? fileSingle : fileMulti;
+            
+            if (daftar.length === 0) {
+                alert('Tunggu dulu! Kamu belum memilih atau mengambil foto durian.');
+                return;
+            }
+
+            // Ubah tombol jadi loading biar pengguna tahu AI sedang memproses
+            const btnSubmit = formKlasifikasi.querySelector('button[type="submit"]');
+            const teksAsli = btnSubmit.innerHTML;
+            btnSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Memproses AI...';
+            btnSubmit.disabled = true;
+
+            // Buat FormData secara manual
+            const formData = new FormData(formKlasifikasi);
+            
+            // Hapus data gambar bawaan form yang ukurannya 0 bytes
+            formData.delete('gambar[]'); 
+
+            // Masukkan gambar dari JS satu per satu secara paksa dan aman
+            daftar.forEach((file) => {
+                formData.append('gambar[]', file, file.name || 'foto_kamera.jpg');
+            });
+
+            try {
+                // Kirim form langsung lewat background (AJAX)
+                const response = await fetch(formKlasifikasi.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                // Memaksa browser pindah ke halaman hasil atau kembali menampilkan error
+                window.location.href = response.url;
+                
+            } catch (error) {
+                console.error('Error pengiriman:', error);
+                alert('Gagal menghubungi server. Pastikan internet stabil dan coba lagi.');
+                
+                // Kembalikan tombol seperti semula jika gagal
+                btnSubmit.innerHTML = teksAsli;
+                btnSubmit.disabled = false;
+            }
         });
 
         // ── Init ──────────────────────────────────────────────────────────────────
