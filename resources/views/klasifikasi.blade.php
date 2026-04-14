@@ -132,7 +132,6 @@
 
             <input type="hidden" name="mode_upload" id="mode_upload" value="single">
             
-            {{-- PERUBAHAN PENTING: Dihapus atribut 'name="gambar[]"' agar tidak diganggu oleh browser mobile --}}
             <input type="file" id="gambar-kirim" class="hidden" multiple>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -156,7 +155,7 @@
                                     </div>
                                     <div>
                                         <h3 class="font-headline text-xl font-bold">1 Gambar</h3>
-                                        <p class="text-sm text-slate-600 mt-1">Cocok untuk klasifikasi cepat hanya dengan satu foto.</p>
+                                        <p class="text-sm text-slate-600 mt-1">Cocok untuk klasifikasi cepat.</p>
                                     </div>
                                 </div>
                             </button>
@@ -169,7 +168,7 @@
                                     </div>
                                     <div>
                                         <h3 class="font-headline text-xl font-bold">Multi Sudut</h3>
-                                        <p class="text-sm text-slate-600 mt-1">Unggah 2, 3, atau 4 gambar dari sisi berbeda agar lebih akurat.</p>
+                                        <p class="text-sm text-slate-600 mt-1">Unggah 2–4 gambar sisi berbeda.</p>
                                     </div>
                                 </div>
                             </button>
@@ -195,7 +194,7 @@
                                     </div>
                                     <div>
                                         <h3 class="font-headline font-bold text-lg">Pilih dari Galeri</h3>
-                                        <p class="text-sm text-slate-600">Ambil 1 gambar dari penyimpanan perangkat.</p>
+                                        <p class="text-sm text-slate-600">Ambil 1 gambar dari perangkat.</p>
                                     </div>
                                 </div>
                             </label>
@@ -207,8 +206,8 @@
                                         <span class="material-symbols-outlined text-3xl">photo_camera</span>
                                     </div>
                                     <div>
-                                        <h3 class="font-headline font-bold text-lg">Ambil dari Kamera</h3>
-                                        <p class="text-sm text-slate-600">Foto langsung menggunakan kamera perangkat.</p>
+                                        <h3 class="font-headline font-bold text-lg">Dari Kamera</h3>
+                                        <p class="text-sm text-slate-600">Foto langsung pakai kamera.</p>
                                     </div>
                                 </div>
                             </button>
@@ -239,7 +238,7 @@
                         <div class="flex items-center justify-between gap-4 flex-wrap mb-6">
                             <div>
                                 <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700 mb-2">Upload Multi Sudut</p>
-                                <h2 class="font-headline text-2xl font-bold">Unggah 2–4 Foto dari Berbagai Sisi</h2>
+                                <h2 class="font-headline text-2xl font-bold">Unggah 2–4 Foto</h2>
                             </div>
                             <span class="text-sm text-slate-500">Bisa 2, 3, atau 4 gambar</span>
                         </div>
@@ -253,7 +252,7 @@
                                     </div>
                                     <div>
                                         <h3 class="font-headline font-bold text-lg">Tambah dari Galeri</h3>
-                                        <p class="text-sm text-slate-600">Bisa pilih beberapa gambar sekaligus.</p>
+                                        <p class="text-sm text-slate-600">Pilih beberapa gambar sekaligus.</p>
                                     </div>
                                 </div>
                             </label>
@@ -266,7 +265,7 @@
                                     </div>
                                     <div>
                                         <h3 class="font-headline font-bold text-lg">Foto 4 Sisi Berurutan</h3>
-                                        <p class="text-sm text-slate-600">Kamera akan memandu pengambilan dari tiap sudut.</p>
+                                        <p class="text-sm text-slate-600">Kamera akan memandu tiap sudut.</p>
                                     </div>
                                 </div>
                             </button>
@@ -311,14 +310,14 @@
                                     <strong id="teks-mode-aktif">1 Gambar</strong>
                                 </div>
                                 <div class="flex justify-between gap-4">
-                                    <span>Total gambar dipilih</span>
+                                    <span>Total gambar siap kirim</span>
                                     <strong id="teks-total-gambar">0</strong>
                                 </div>
                             </div>
                         </div>
 
                         <div class="flex flex-col gap-4">
-                            <button type="submit"
+                            <button type="submit" id="tombol-submit"
                                 class="w-full signature-gradient text-white py-5 rounded-2xl font-headline font-bold text-lg hover:opacity-90 transition-opacity active:scale-[0.98] duration-200 shadow-lg shadow-emerald-900/10">
                                 Mulai Klasifikasi
                             </button>
@@ -368,6 +367,7 @@
         const teksModeAktif      = document.getElementById('teks-mode-aktif');
         const teksTotalGambar    = document.getElementById('teks-total-gambar');
         const tombolReset        = document.getElementById('tombol-reset');
+        const tombolSubmit       = document.getElementById('tombol-submit');
 
         const modalKamera        = document.getElementById('modal-kamera');
         const videoEl            = document.getElementById('video-kamera');
@@ -399,6 +399,56 @@
             teksTotalGambar.textContent = inputMode.value === 'single' ? fileSingle.length : fileMulti.length;
         }
 
+        // ============================================================================
+        // MESIN KOMPRESI GAMBAR PINTAR (Mencegah Error Failed to Fetch & Payload Raksasa)
+        // ============================================================================
+        async function kompresGambarPintar(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        // Maksimal dimensi 1024px (Sudah lebih dari cukup untuk model 299x299 InceptionV3)
+                        const MAX_SIZE = 1024; 
+
+                        if (width > height) {
+                            if (width > MAX_SIZE) {
+                                height *= MAX_SIZE / width;
+                                width = MAX_SIZE;
+                            }
+                        } else {
+                            if (height > MAX_SIZE) {
+                                width *= MAX_SIZE / height;
+                                height = MAX_SIZE;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Ubah kembali jadi file dengan kualitas 80% (menghemat hingga 90% size original)
+                        canvas.toBlob((blob) => {
+                            const namaFileBaru = `durianfy_compressed_${Date.now()}.jpg`;
+                            const fileBaru = new File([blob], namaFileBaru, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            resolve(fileBaru);
+                        }, 'image/jpeg', 0.80);
+                    };
+                };
+            });
+        }
+
+        // ── Render Tampilan Preview ──
         function renderPreviewSingle() {
             jumlahSingle.textContent = fileSingle.length;
             if (fileSingle.length === 0) {
@@ -460,14 +510,7 @@
             perbaruiTotalGambar();
         };
 
-        function tambahKeMulti(daftarBaru) {
-            daftarBaru.forEach(file => {
-                if (fileMulti.length < 4) fileMulti.push(file);
-            });
-            renderPreviewMulti();
-            perbaruiTotalGambar();
-        }
-
+        // ── Sistem Kamera Khusus ──
         function updateIndikatorSlot(slotAktif) {
             const dots = indikatorSlot.querySelectorAll('.slot-dot');
             dots.forEach((dot, i) => {
@@ -506,7 +549,7 @@
             try {
                 hentikanStream();
                 teksStatusKamera.textContent = 'Menghubungkan kamera...';
-                const constraints = { video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false };
+                const constraints = { video: { facingMode: facingMode, width: { ideal: 1024 }, height: { ideal: 1024 } }, audio: false };
                 streamAktif = await navigator.mediaDevices.getUserMedia(constraints);
                 videoEl.srcObject = streamAktif;
                 teksStatusKamera.textContent = 'Kamera siap';
@@ -533,18 +576,22 @@
         }
 
         function ambilFotoDariVideo() {
-            const w = videoEl.videoWidth || 640;
-            const h = videoEl.videoHeight || 480;
+            // Membatasi batas kanvas video saat pemotretan agar tidak perlu resize rumit lagi
+            let w = videoEl.videoWidth || 640;
+            let h = videoEl.videoHeight || 480;
+            const MAX = 1024;
+            if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
+            else if (h > MAX) { w *= MAX / h; h = MAX; }
+
             canvasEl.width = w;
             canvasEl.height = h;
 
             const ctx = canvasEl.getContext('2d');
             ctx.drawImage(videoEl, 0, 0, w, h);
 
-            // Kompres sedikit lebih kuat (0.8) agar aman saat dikirim
             canvasEl.toBlob(blob => {
                 if (!blob) return;
-                const file = new File([blob], `durian-${modeKamera}-${Date.now()}.jpg`, { type: 'image/jpeg' });
+                const file = new File([blob], `durianfy_kamera_${Date.now()}.jpg`, { type: 'image/jpeg' });
 
                 const flash = document.createElement('div');
                 flash.className = 'absolute inset-0 bg-white opacity-80 transition-opacity duration-200';
@@ -575,7 +622,7 @@
                         updateIndikatorSlot(slotMultiTarget);
                     }
                 }
-            }, 'image/jpeg', 0.8);
+            }, 'image/jpeg', 0.85); // Compress 85% untuk kamera 
         }
 
         tombolGantiKamera.addEventListener('click', () => {
@@ -599,37 +646,53 @@
         tombolAmbilFoto.addEventListener('click', ambilFotoDariVideo);
         tombolTutupModal.addEventListener('click', tutupModal);
 
-        inputSingleFallback.addEventListener('change', function () {
-            if (this.files.length > 0) {
-                fileSingle = [this.files[0]];
+        // ── Event Listener Galeri (Dilengkapi Auto Kompresi) ──
+        async function prosesUploadGaleriSingle(input) {
+            if (input.files.length > 0) {
+                tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Mengecilkan Foto...';
+                tombolSubmit.disabled = true;
+
+                const compressedFile = await kompresGambarPintar(input.files[0]);
+                fileSingle = [compressedFile];
+                
                 renderPreviewSingle();
                 perbaruiTotalGambar();
-                this.value = '';
+                
+                tombolSubmit.innerHTML = 'Mulai Klasifikasi';
+                tombolSubmit.disabled = false;
+                input.value = '';
             }
-        });
+        }
 
-        inputMultiFallback.addEventListener('change', function () {
-            if (this.files.length > 0) {
-                tambahKeMulti([this.files[0]]);
-                this.value = '';
-            }
-        });
+        async function prosesUploadGaleriMulti(input) {
+            if (input.files.length > 0) {
+                tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Mengecilkan Foto...';
+                tombolSubmit.disabled = true;
 
-        inputSingleGaleri.addEventListener('change', function () {
-            if (this.files.length > 0) {
-                fileSingle = [this.files[0]];
-                renderPreviewSingle();
+                const filesArray = Array.from(input.files);
+                for (let file of filesArray) {
+                    if (fileMulti.length < 4) {
+                        const compressedFile = await kompresGambarPintar(file);
+                        fileMulti.push(compressedFile);
+                    }
+                }
+                
+                renderPreviewMulti();
                 perbaruiTotalGambar();
+                
+                tombolSubmit.innerHTML = 'Mulai Klasifikasi';
+                tombolSubmit.disabled = false;
+                input.value = '';
             }
-        });
+        }
 
-        inputMultiGaleri.addEventListener('change', function () {
-            if (this.files.length > 0) {
-                tambahKeMulti(Array.from(this.files));
-                this.value = '';
-            }
-        });
+        inputSingleFallback.addEventListener('change', function () { prosesUploadGaleriSingle(this); });
+        inputSingleGaleri.addEventListener('change', function () { prosesUploadGaleriSingle(this); });
+        
+        inputMultiFallback.addEventListener('change', function () { prosesUploadGaleriMulti(this); });
+        inputMultiGaleri.addEventListener('change', function () { prosesUploadGaleriMulti(this); });
 
+        // ── Switch Mode & Reset ──
         function aktifkanMode(mode) {
             inputMode.value = mode;
             if (mode === 'single') {
@@ -663,7 +726,7 @@
             aktifkanMode('single');
         });
 
-        // ── Perbaikan Submit: Memisahkan FormData murni dari Form HTML ──
+        // ── Submit Ajax yang Aman ──
         const formKlasifikasi = document.getElementById('form-klasifikasi');
         formKlasifikasi.addEventListener('submit', async function(e) {
             e.preventDefault(); 
@@ -674,21 +737,19 @@
                 return;
             }
 
-            const btnSubmit = formKlasifikasi.querySelector('button[type="submit"]');
-            const teksAsli = btnSubmit.innerHTML;
-            btnSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Memproses AI...';
-            btnSubmit.disabled = true;
+            const teksAsli = tombolSubmit.innerHTML;
+            tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> Memproses AI...';
+            tombolSubmit.disabled = true;
 
-            // Form data ini SEKARANG BERSIH dari tag gambar kosong 
             const formData = new FormData(formKlasifikasi);
             
             // Masukkan gambar manual dari array yang kita simpan ke key 'gambar[]'
             daftar.forEach((file) => {
-                formData.append('gambar[]', file, file.name || 'kamera.jpg');
+                formData.append('gambar[]', file, file.name);
             });
 
             try {
-                // Paksa menggunakan HTTPS jika web sedang jalan di HTTPS untuk menghindari mixed-content Railway
+                // Menghindari error CORS/Mixed Content dari HTTP ke HTTPS di Railway
                 let postUrl = formKlasifikasi.action;
                 if (window.location.protocol === 'https:' && postUrl.startsWith('http:')) {
                     postUrl = postUrl.replace('http:', 'https:');
@@ -708,7 +769,7 @@
                 if (!response.ok) {
                     const status = response.status;
                     if (status === 413) {
-                        alert('Gagal: Ukuran foto terlalu besar. Maksimal 5MB per gambar.');
+                        alert('Gagal: Ukuran foto masih terlalu besar untuk server.');
                     } else if (status === 422) {
                         alert('Gagal: Validasi ditolak. Format foto mungkin rusak atau bukan gambar.');
                         window.location.reload(); 
@@ -718,8 +779,8 @@
                     } else {
                         alert('Gagal: Server merespons dengan error ' + status);
                     }
-                    btnSubmit.innerHTML = teksAsli;
-                    btnSubmit.disabled = false;
+                    tombolSubmit.innerHTML = teksAsli;
+                    tombolSubmit.disabled = false;
                     return;
                 }
 
@@ -727,12 +788,13 @@
 
             } catch (error) {
                 console.error('Fetch Error:', error);
-                alert('Gagal menghubungi server (' + error.message + '). Coba gunakan gambar lain dengan resolusi lebih kecil.');
-                btnSubmit.innerHTML = teksAsli;
-                btnSubmit.disabled = false;
+                alert('Server sedang sangat sibuk atau down. Silakan refresh halaman dan coba lagi.');
+                tombolSubmit.innerHTML = teksAsli;
+                tombolSubmit.disabled = false;
             }
         });
 
+        // Init saat pertama load
         renderPreviewSingle(); renderPreviewMulti(); aktifkanMode('single');
 
     })();
