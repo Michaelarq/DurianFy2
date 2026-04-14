@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
 
-GDRIVE_FOLDER_ID = os.environ.get('GDRIVE_FOLDER_ID', '')
+GDRIVE_FOLDER_ID = os.environ.get('GDRIVE_FOLDER_ID', '1sA0uPUO0fQB4XtgztKydGArUyPSzGYgZ')
 
 app = Flask(__name__)
 CORS(app)
