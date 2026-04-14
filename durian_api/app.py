@@ -24,8 +24,13 @@ CLASS_NAMES = ['bawor', 'blackthorn', 'jenis_lainnya', 'musang_king']
 # ─── AUTO DOWNLOAD MODEL ─────────────────────────────────────────────────────
 def download_model():
     if os.path.exists(MODEL_PATH) and os.listdir(MODEL_PATH):
-        print("[OK] Model sudah ada, skip download.")
-        return True
+        # Cek apakah saved_model.pb benar-benar ada langsung di MODEL_PATH
+        if os.path.exists(os.path.join(MODEL_PATH, 'saved_model.pb')):
+            print("[OK] Model sudah ada, skip download.")
+            return True
+        else:
+            # Kemungkinan ada subfolder hasil gdown, coba pindahkan
+            print("[INFO] Struktur folder tidak sesuai, mencoba memperbaiki...")
 
     if not GDRIVE_FOLDER_ID:
         print("[GAGAL] GDRIVE_FOLDER_ID tidak diset!")
@@ -33,18 +38,56 @@ def download_model():
 
     print("Mendownload model dari Google Drive...")
     try:
-        # Download folder ke direktori sementara dulu
+        TEMP_PATH = 'model_durian_tf_temp'
+
+        # Download ke folder temp dulu
         gdown.download_folder(
             id=GDRIVE_FOLDER_ID,
-            output=MODEL_PATH,   # <-- langsung output ke MODEL_PATH
+            output=TEMP_PATH,
             quiet=False,
             use_cookies=False
         )
-        print("[OK] Download selesai!")
+
+        # gdown mungkin membuat TEMP_PATH/model_durian_tf/ atau langsung TEMP_PATH/
+        # Cari di mana saved_model.pb berada
+        import shutil
+
+        pb_langsung = os.path.join(TEMP_PATH, 'saved_model.pb')
+        pb_subfolder = os.path.join(TEMP_PATH, 'model_durian_tf', 'saved_model.pb')
+
+        if os.path.exists(pb_langsung):
+            # File langsung di TEMP_PATH, pindah ke MODEL_PATH
+            if os.path.exists(MODEL_PATH):
+                shutil.rmtree(MODEL_PATH)
+            shutil.move(TEMP_PATH, MODEL_PATH)
+
+        elif os.path.exists(pb_subfolder):
+            # Ada subfolder, angkat isinya naik satu level
+            src = os.path.join(TEMP_PATH, 'model_durian_tf')
+            if os.path.exists(MODEL_PATH):
+                shutil.rmtree(MODEL_PATH)
+            shutil.move(src, MODEL_PATH)
+            shutil.rmtree(TEMP_PATH, ignore_errors=True)
+
+        else:
+            print(f"[GAGAL] saved_model.pb tidak ditemukan setelah download.")
+            print(f"[DEBUG] Isi {TEMP_PATH}: {os.listdir(TEMP_PATH)}")
+            return False
+
+        print("[OK] Download dan ekstraksi selesai!")
+        print(f"[OK] Isi model: {os.listdir(MODEL_PATH)}")
         return True
+
     except Exception as e:
         print(f"[GAGAL] Download folder gagal: {e}")
         return False
+    
+    # Panggil download dulu sebelum load
+if not download_model():
+    print("[GAGAL] Model tidak berhasil didownload!")
+
+print("=" * 55)
+print("DurianFy AI Server — Memuat model InceptionV3 V3...")
 # ─── LOAD MODEL ──────────────────────────────────────────────────────────────
 
 print("=" * 55)
@@ -151,6 +194,8 @@ def predict():
             'message': f'Terjadi kesalahan saat prediksi: {str(e)}'
         }), 500
 
+for root, dirs, files in os.walk('model_durian_tf_temp'):
+    print(root, files)
 
 # ─── JALANKAN SERVER ─────────────────────────────────────────────────────────
 if __name__ == '__main__':
