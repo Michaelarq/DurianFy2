@@ -1,6 +1,2 @@
-*
-!.gitignore
-.env
-/node_modules
-# /vendor
-# /bootstrap/cache/*.php
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
