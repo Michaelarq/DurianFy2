@@ -32,3 +32,10 @@ durian_api/*.pyo
 durian_api/*.h5
 durian_api/*.keras
 durian_api/model_durian_tf/
+
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
