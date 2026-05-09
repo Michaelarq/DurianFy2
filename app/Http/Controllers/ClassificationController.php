@@ -12,18 +12,19 @@ class ClassificationController extends Controller
         $model = $request->input('model', 'InceptionV3');
 
         $files = [];
-        $paths = [];
 
         foreach ($request->file('gambar', []) as $file) {
             if ($file && $file->isValid()) {
-                $paths[] = $file->store('uploads', 'public');
                 $files[] = $file;
             }
         }
 
+        if (empty($files)) {
+            return back()->with('info', 'Tidak ada gambar valid yang berhasil diproses. Silakan coba lagi.');
+        }
+
         try {
             if (count($files) === 1) {
-                // ── Mode single: prediksi langsung ──────────────────────────────
                 $hasilAPI = $layanan->proses($files, $model);
 
                 $result = [
@@ -32,44 +33,33 @@ class ClassificationController extends Controller
                     'model'             => $model,
                     'jumlah_gambar'     => 1,
                     'probabilitas'      => $hasilAPI['probabilitas'],
-                    'gambar'            => array_map(fn($p) => asset('storage/' . $p), $paths),
+                    'gambar'            => [],
                 ];
 
             } else {
-                // ── Mode multi: rata-rata probabilitas dari semua gambar ─────────
-                //
-                // Strategi: kirim setiap gambar satu per satu ke Flask,
-                // kumpulkan array probabilitas per gambar, lalu rata-ratakan.
-                // Label pemenang = kelas dengan rata-rata probabilitas tertinggi.
-                //
-                // Jika layanan mendukung batch, ganti loop di bawah dengan
-                // $layanan->prosesBatch($files, $model) yang mengembalikan
-                // array of ['probabilitas' => [...]] per gambar.
-
-                $semuaProbabilitas = []; // [ ['Musang King' => 80.0, 'Bawor' => 15.0, ...], ... ]
+                $semuaProbabilitas = [];
 
                 foreach ($files as $file) {
                     $hasilSatu = $layanan->proses([$file], $model);
                     $semuaProbabilitas[] = $hasilSatu['probabilitas'];
                 }
 
-                // Hitung rata-rata per label
                 $rataRata = [];
-                $labelList = array_keys($semuaProbabilitas[0]); // ambil daftar label dari hasil pertama
+                $labelList = array_keys($semuaProbabilitas[0]);
 
                 foreach ($labelList as $label) {
                     $total = 0;
+
                     foreach ($semuaProbabilitas as $prob) {
                         $total += $prob[$label] ?? 0;
                     }
+
                     $rataRata[$label] = $total / count($semuaProbabilitas);
                 }
 
-                // Urutkan dari tertinggi ke terendah
                 arsort($rataRata);
 
-                // Label pemenang = rata-rata tertinggi
-                $labelUtama      = array_key_first($rataRata);
+                $labelUtama = array_key_first($rataRata);
                 $confidenceUtama = $rataRata[$labelUtama];
 
                 $result = [
@@ -78,7 +68,7 @@ class ClassificationController extends Controller
                     'model'            => $model,
                     'jumlah_gambar'    => count($files),
                     'probabilitas'     => array_map(fn($v) => round($v, 2), $rataRata),
-                    'gambar'           => array_map(fn($p) => asset('storage/' . $p), $paths),
+                    'gambar'           => [],
                 ];
             }
 
@@ -96,7 +86,8 @@ class ClassificationController extends Controller
         $hasil = session('classification_result');
 
         if (! $hasil) {
-            return redirect()->route('klasifikasi')->with('info', 'Belum ada hasil klasifikasi. Silakan unggah gambar terlebih dahulu.');
+            return redirect()->route('klasifikasi')
+                ->with('info', 'Belum ada hasil klasifikasi. Silakan unggah gambar terlebih dahulu.');
         }
 
         return view('hasil-klasifikasi', compact('hasil'));

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use App\Services\LayananPrediksiDurian;
 
 class HalamanDurianController extends Controller
@@ -21,26 +20,32 @@ class HalamanDurianController extends Controller
     }
 
     /**
-     * Proses gambar yang diupload, kirim ke Flask API, simpan hasilnya ke session.
+     * Proses gambar yang diupload, kirim ke API Hugging Face,
+     * lalu tampilkan hasil klasifikasi beserta preview gambar.
      */
-    public function proses(Request $request): \Illuminate\Http\RedirectResponse
+    public function proses(Request $request): \Illuminate\View\View|\Illuminate\Http\RedirectResponse
     {
-        // Validasi input
         $request->validate([
             'model'    => 'required|string',
             'gambar'   => 'required|array|min:1|max:4',
             'gambar.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
-        $daftarGambarUrl = [];
-        $fileGambarAsli  = [];
+        $fileGambarAsli = [];
+        $daftarGambarPreview = [];
 
-        // Simpan setiap gambar ke storage publik dan kumpulkan file aslinya
         foreach ($request->file('gambar', []) as $file) {
             if ($file && $file->isValid()) {
-                $path              = $file->store('unggahan-hasil', 'public');
-                $daftarGambarUrl[] = Storage::url($path);
-                $fileGambarAsli[]  = $file;
+                $fileGambarAsli[] = $file;
+
+                /*
+                 * Preview gambar tanpa storage permanen.
+                 * Cocok untuk Vercel karena file tidak disimpan ke public/storage.
+                 */
+                $mimeType = $file->getMimeType();
+                $base64 = base64_encode(file_get_contents($file->getRealPath()));
+
+                $daftarGambarPreview[] = "data:{$mimeType};base64,{$base64}";
             }
         }
 
@@ -50,26 +55,37 @@ class HalamanDurianController extends Controller
         }
 
         try {
-            // Panggil LayananPrediksiDurian → Flask API → model InceptionV3
+            /*
+             * Kirim gambar ke API Hugging Face.
+             * LayananPrediksiDurian akan memanggil FLASK_API_URL/predict.
+             */
             $hasilAPI = $this->layananPrediksi->proses($fileGambarAsli, $request->model);
 
-            // Susun data sesuai yang dibutuhkan view hasil-klasifikasi.blade.php
-            $hasilAkhir = [
-                'label_utama'       => $hasilAPI['label_utama'],        // ex: 'Musang King'
-                'model'             => $request->model,                  // ex: 'InceptionV3'
-                'confidence_utama'  => $hasilAPI['confidence'],          // ex: 98.4
-                'jumlah_gambar'     => count($daftarGambarUrl),
-                'probabilitas'      => $hasilAPI['probabilitas'],        // ex: ['Musang King' => 98.4, ...]
-                'gambar'            => $daftarGambarUrl,                 // URL gambar yang diupload
+            $hasil = [
+                'label_utama'       => $hasilAPI['label_utama'],
+                'model'             => $request->model,
+                'confidence_utama'  => $hasilAPI['confidence'],
+                'jumlah_gambar'     => count($fileGambarAsli),
+                'probabilitas'      => $hasilAPI['probabilitas'],
+                'gambar'            => $daftarGambarPreview,
             ];
 
-            // Simpan ke session dan redirect ke halaman hasil
-            session(['hasil_klasifikasi' => $hasilAkhir]);
+            /*
+             * Simpan hasil ke session tanpa gambar agar session tidak terlalu besar.
+             * Gambar hanya tampil pada response POST saat ini.
+             */
+            $hasilUntukSession = $hasil;
+            $hasilUntukSession['gambar'] = [];
 
-            return redirect()->route('hasil');
+            session(['hasil_klasifikasi' => $hasilUntukSession]);
+
+            /*
+             * Penting:
+             * Return view langsung agar browser render halaman hasil secara normal.
+             */
+            return view('hasil-klasifikasi', compact('hasil'));
 
         } catch (\Exception $e) {
-            // Jika Flask mati atau error, kembalikan ke halaman upload dengan pesan error
             return redirect()->route('klasifikasi')
                 ->with('info', $e->getMessage());
         }

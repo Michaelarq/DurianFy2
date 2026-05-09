@@ -1,0 +1,16 @@
+.env
+.env.backup
+.env.production
+
+/node_modules
+/vendor
+
+durian_api/
+backup_railway/
+
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+.git

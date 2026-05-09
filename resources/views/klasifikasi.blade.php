@@ -134,7 +134,7 @@
             @csrf
 
             <input type="hidden" name="mode_upload" id="mode_upload" value="single">
-            <input type="file" id="gambar-kirim" class="hidden" multiple>
+            <input type="file" id="gambar-kirim" name="gambar[]" accept="image/*" class="hidden" multiple>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 {{-- ===== KIRI ===== --}}
@@ -705,63 +705,67 @@
             aktifkanMode('single');
         });
 
-        // ── Submit Ajax yang Kebal Redirect Block ──
+        // ── Submit normal agar halaman hasil tidak kacau ──
         const formKlasifikasi = document.getElementById('form-klasifikasi');
-        formKlasifikasi.addEventListener('submit', async function(e) {
-            e.preventDefault(); 
-            
+        const gambarKirim = document.getElementById('gambar-kirim');
+
+        formKlasifikasi.addEventListener('submit', function(e) {
+            e.preventDefault();
+
             const daftar = inputMode.value === 'single' ? fileSingle : fileMulti;
+
             if (daftar.length === 0) {
                 alert('Tunggu dulu! Kamu belum memilih foto durian.');
                 return;
             }
 
-            const teksAsli = tombolSubmit.innerHTML;
-            tombolSubmit.innerHTML = '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> AI Sedang Bekerja...';
-            tombolSubmit.disabled = true;
+            if (inputMode.value === 'multi' && daftar.length < 2) {
+                alert('Mode Multi Sudut membutuhkan minimal 2 gambar.');
+                return;
+            }
 
-            const formData = new FormData(formKlasifikasi);
+            if (daftar.length > 4) {
+                alert('Maksimal 4 gambar yang dapat diklasifikasikan.');
+                return;
+            }
+
+            /*
+             * Masukkan file hasil preview JS ke input file final.
+             * Jadi Laravel tetap menerima field gambar[] secara normal.
+             */
+            const dataTransfer = new DataTransfer();
+
             daftar.forEach((file) => {
-                formData.append('gambar[]', file, file.name);
+                dataTransfer.items.add(file);
             });
 
-            try {
-                // Konversi aman link HTTP ke HTTPS (jika Railway memberikan route HTTP)
-                let postUrl = formKlasifikasi.action;
-                if (window.location.protocol === 'https:' && postUrl.startsWith('http:')) {
-                    postUrl = postUrl.replace('http:', 'https:');
+            gambarKirim.files = dataTransfer.files;
+
+            /*
+             * Disable input lain agar tidak dobel terkirim.
+             * Input gambar-kirim tetap aktif karena itu yang dikirim ke Laravel.
+             */
+            [
+                inputSingleGaleri,
+                inputSingleFallback,
+                inputMultiGaleri,
+                inputMultiFallback
+            ].forEach((input) => {
+                if (input) {
+                    input.disabled = true;
                 }
+            });
 
-                const response = await fetch(postUrl, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
+            tombolSubmit.innerHTML =
+                '<span class="material-symbols-outlined animate-spin align-middle mr-2">sync</span> AI Sedang Bekerja...';
 
-                if (response.redirected) {
-                    let finalUrl = response.url;
-                    if (window.location.protocol === 'https:' && finalUrl.startsWith('http:')) {
-                        finalUrl = finalUrl.replace('http:', 'https:');
-                    }
-                    window.location.href = finalUrl;
-                    return;
-                }
+            tombolSubmit.disabled = true;
 
-                if (!response.ok) {
-                    throw new Error(`Server membalas dengan status: ${response.status}`);
-                }
-
-                window.location.href = response.url;
-
-            } catch (error) {
-                console.error('Fetch Error Detail:', error);
-                
-                // SMART FALLBACK
-                // Jika error ini terjadi (Failed to fetch), 99% karena browser menendang paksa redirect dari backend.
-                // PADAHAL, backend Laravel sebenarnya SUDAH SELESAI memproses dan menyimpan hasil di session.
-                // Daripada memunculkan pesan error palsu, kita paksa browser pergi ke rute /hasil untuk mengecek sendiri.
-                window.location.href = '/hasil';
-            }
+            /*
+             * Submit form secara normal.
+             * Browser akan render hasil-klasifikasi.blade.php dengan CSS/layout normal.
+             */
+            formKlasifikasi.submit();
         });
 
         renderPreviewSingle(); renderPreviewMulti(); aktifkanMode('single');
